@@ -1,0 +1,162 @@
+---
+title: "STAN Tutorial"
+author: "Seongwon Im"
+date: "2/18/2021"
+output: 
+  html_document:
+    theme: yeti
+---
+## rstan
+
+Description of 
+what is stan? 
+why is stan?
+
+```{r, message = FALSE}
+# Import packages
+library(rstan)
+library(rstanarm)
+```
+
+### 1. Data
+
+Description of data
+
+```{r, fig.align='center'}
+# Built in dataset: kidiq
+mom.iq <- kidiq$mom_iq # Predictor
+child.iq <- kidiq$kid_score # Response
+
+# Plot
+plot(mom.iq, child.iq, xlab = "Mom IQ", ylab = "Child IQ")
+```
+
+## 2. Preparing data
+
+Preparing the data? What is the input?
+```{r}
+stan_data = list(N = nrow(kidiq), # Number of rows of the dataset
+                 x = mom.iq, # Predictor variable
+                 y = child.iq) # Response variable
+
+# Design matrix for multiple covariates
+# Parameters for prior distributions
+```
+
+### 3. Writing a stan code
+
+Basic Format
+```{r}
+write("
+data { // This is where you format the input data (Known)
+}
+
+parameters { // This is where you state your parameters (Unknown)
+}
+
+transformed parameters{ // This is where you transform your parameters
+}                       // Good for hierarchical modeling
+
+model { // This is where you specify distributions.
+}
+
+generated quantities { // Good for prediction
+}"
+
+, "name.stan") # Name the stan file
+```
+Explanation on each block
+
+
+### Simple linear regression 
+$$Y \sim N(X \beta, \sigma^2 I)$$
+Explanation of simple linear regression
+
+Known: $\beta_0$, $\beta_1$, $\sigma^2$
+
+Unknown: $Y$, $X$
+```{r}
+# Create a stan file.
+write("
+data { 
+ int <lower = 1> N; // Sample size with restriction
+ vector[N] x; // Predictor variable
+ vector[N] y; // Response variable
+}
+
+parameters { 
+ real beta0; // Intercept
+ real beta1; // Slope
+ real <lower = 0> sigma; // Error
+}
+
+transformed parameters{
+}
+
+model {
+ //beta0 ~ normal(10, 0.1); // if want prior for the intercept
+ //beta1 ~ normal(1, 0.1); // if want prior for the slope
+ y ~ normal(beta0 + x * beta1, sigma);
+}
+
+generated quantities {
+}"
+
+, "stanSLR.stan") # Name the stan file stanSLR.stan
+```
+
+### 4. Fit the model
+```{r, message = FALSE}
+# fit with lm() to see what to expect
+lmfit = lm(child.iq ~ mom.iq)
+c(lmfit$coefficients, sigma(lmfit))
+```
+
+Explain the result
+
+```{r, results='hide'}
+# Fit the model
+stanfit <- stan(file = "stanSLR.stan", # Stan file
+                data = stan_data, # Data
+                warmup = 500, # Number of iteration to burn-in
+                iter = 1500, # Number of iteration
+                chains = 4) # Number of chains to run
+```
+What to include in the stan model
+
+### 5. Analysis
+```{r, fig.align='center'}
+# See the fit
+stanfit
+
+# Plot the fit
+plot(mom.iq, child.iq, xlab = "Mom IQ", ylab = "Child IQ") # Plot the data
+abline(mean(extract(stanfit)$beta0), mean(extract(stanfit)$beta1), 
+       col = 4, lw = 2) # Include the line
+```
+
+
+```{r, warning = FALSE, fig.align='center'}
+# More plots
+traceplot(stanfit)
+stan_dens(stanfit)
+stan_hist(stanfit)
+```
+
+
+
+```{r, fig.align='center'}
+# Checking convergence
+#shinystan::launch_shinystan(stanfit)
+```
+
+&nbsp;
+
+## Reference
+
+* Coding Club. (n.d.). Intro to Stan. Retrieved February 15, 2021, from https://ourcodingclub.github.io/tutorials/stan-intro/
+
+* Gabry, J. G., & Goodrich, B. G. (2020, July 20). Estimating 
+Regularized Linear Models with rstanarm. Estimating Regularized Linear Models with Rstanarm. 
+
+* https://mc-stan.org/rstanarm/articles/lm.htmlLai, M. (2019, December 13). Course Handouts for Bayesian Data Analysis Class. Course Handouts for Bayesian Data Analysis Class. https://bookdown.org/marklhc/notes_bookdown/
